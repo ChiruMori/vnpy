@@ -1,8 +1,8 @@
 # 继承 BaseDatafeed
 from typing import Callable
-from vnpy.vnpy.trader.constant import Exchange, Interval
-from vnpy.vnpy.trader.datafeed import BaseDatafeed
-from vnpy.vnpy.trader.object import BarData, HistoryRequest, TickData
+from vnpy.trader.constant import Exchange, Interval
+from vnpy.trader.datafeed import BaseDatafeed
+from vnpy.trader.object import BarData, HistoryRequest, TickData
 from vnpy.trader.locale import _
 from vnpy.trader.setting import SETTINGS
 from vnpy.trader.utility import round_to
@@ -20,7 +20,7 @@ INTERVAL_VT2RQ: dict[Interval, str] = {
     # Interval.HOUR: "60m",
     Interval.DAILY: "daily",
     Interval.WEEKLY: "weekly",
-    Interval.MONTHLY: "monthly",
+    # Interval.MONTHLY: "monthly",
 }
 
 
@@ -53,7 +53,7 @@ class AktoolDatafeed(BaseDatafeed):
         exchange: Exchange = req.exchange
         interval: Interval | None = req.interval
         start: datetime = req.start
-        end: datetime = req.end
+        end: datetime = req.end if req.end is not None else datetime.now()
 
         # 股票期权
         if exchange not in [Exchange.SSE, Exchange.SZSE]:
@@ -71,8 +71,8 @@ class AktoolDatafeed(BaseDatafeed):
         stock_zh_a_hist_df = ak.stock_zh_a_hist(
             symbol,
             period=parsed_interval,
-            start_date=start.strftime('%Y%m%d'),
-            end_date=end.strftime('%Y%m%d'),
+            start_date=start.strftime("%Y%m%d"),
+            end_date=end.strftime("%Y%m%d"),
             # 前复权
             adjust="qfq",
         )
@@ -84,13 +84,10 @@ class AktoolDatafeed(BaseDatafeed):
             stock_zh_a_hist_df.fillna(0, inplace=True)
 
             for row in stock_zh_a_hist_df.itertuples():
-                row_index: tuple[str, Timestamp] = cast(
-                    tuple[str, Timestamp], row.日期
-                )
-                dt: datetime = row_index[1].to_pydatetime() - adjustment
-                dt = dt.replace(tzinfo=CHINA_TZ)
+                # 提取日期字段
+                dt: datetime = datetime.combine(row.日期, datetime.min.time())  # type: ignore
 
-                if dt >= end:
+                if datetime.timestamp(dt) >= datetime.timestamp(end):
                     break
 
                 bar: BarData = BarData(
@@ -98,12 +95,12 @@ class AktoolDatafeed(BaseDatafeed):
                     exchange=exchange,
                     interval=interval,
                     datetime=dt,
-                    open_price=round_to(row.open, 0.000001),
-                    high_price=round_to(row.high, 0.000001),
-                    low_price=round_to(row.low, 0.000001),
-                    close_price=round_to(row.close, 0.000001),
-                    volume=row.volume,
-                    turnover=row.total_turnover,
+                    open_price=round_to(row.开盘, 0.000001),  # type: ignore
+                    high_price=round_to(row.最高, 0.000001),  # type: ignore
+                    low_price=round_to(row.最低, 0.000001),  # type: ignore
+                    close_price=round_to(row.收盘, 0.000001),  # type: ignore
+                    volume=row.成交量,  # type: ignore
+                    turnover=row.成交额,  # type: ignore
                     open_interest=getattr(row, "open_interest", 0),
                     gateway_name="RQ",
                 )

@@ -53,10 +53,9 @@ def get_datafeed() -> BaseDatafeed:
     else:
         # 支持自定义数据服务
         module_name: str = datafeed_name
+        print(_("使用自定义数据服务：{}").format(module_name))
         if not datafeed_name.startswith("mori."):
             module_name = f"vnpy_{datafeed_name}"
-
-        # Try to import datafeed module
         try:
             module: ModuleType = import_module(module_name)
 
