@@ -155,4 +155,5 @@ class Interval(Enum):
     HOUR = "1h"
     DAILY = "d"
     WEEKLY = "w"
+    MONTHLY = "M"
     TICK = "tick"
